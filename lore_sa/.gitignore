@@ -1,0 +1,13 @@
+*.pyc
+*.egg-info/
+*.pkl
+__pycache__/
+dist/
+build/
+docs/_build/
+docs/source/generated/
+.idea/
+.vscode/
+.DS_Store
+mlflow.db
+
