@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Explainable AI Task Scheduler</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+<header class="header">
+
+    <div>
+        <h1>AI Task Scheduler</h1>
+        <p>
+            Explainable scheduling with probe-aware explanation control
+        </p>
+    </div>
+
+    <div class="status">
+        <span class="status-dot"></span>
+        Scheduler Online
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <!-- ================================================= -->
+    <!-- NORMAL TASK -->
+    <!-- ================================================= -->
+
+    <section class="card">
+
+        <div class="section-title">
+            <div>
+                <h2>Schedule a Task</h2>
+                <p>
+                    Submit a task and inspect the local explanation.
+                </p>
+            </div>
+        </div>
+
+
+        <div class="form-grid">
+
+            <label>
+                CPU Required
+                <input
+                    id="cpu"
+                    type="number"
+                    min="1"
+                    max="16"
+                    value="2"
+                >
+            </label>
+
+            <label>
+                Memory Required
+                <input
+                    id="memory"
+                    type="number"
+                    min="1"
+                    max="32"
+                    value="17"
+                >
+            </label>
+
+            <label>
+                Priority
+                <input
+                    id="priority"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value="6"
+                >
+            </label>
+
+            <label>
+                Deadline
+                <input
+                    id="deadline"
+                    type="number"
+                    min="20"
+                    max="300"
+                    value="146"
+                >
+            </label>
+
+            <label>
+                Queue Length
+                <input
+                    id="queue"
+                    type="number"
+                    min="0"
+                    max="20"
+                    value="3"
+                >
+            </label>
+
+        </div>
+
+
+        <button
+            class="primary-button"
+            onclick="scheduleTask()"
+        >
+            Schedule Task
+        </button>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- RESULT -->
+    <!-- ================================================= -->
+
+    <section
+        id="result-section"
+        class="card hidden"
+    >
+
+        <div class="result-grid">
+
+            <div>
+
+                <span class="label">
+                    Assigned VM
+                </span>
+
+                <div
+                    id="assigned-vm"
+                    class="vm-result"
+                >
+                    VM-3
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <span class="label">
+                    Probe Score
+                </span>
+
+                <div
+                    id="probe-score"
+                    class="score"
+                >
+                    0.00
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div id="explanation-box">
+
+            <h3>LOREsa Explanation</h3>
+
+            <div
+                id="rule"
+                class="rule"
+            ></div>
+
+            <h4>Counterfactuals</h4>
+
+            <div id="counterfactuals"></div>
+
+            <div class="fidelity">
+                Fidelity:
+                <strong id="fidelity"></strong>
+            </div>
+
+        </div>
+
+
+        <div
+            id="blocked-box"
+            class="blocked hidden"
+        >
+
+            <strong>
+                Explanation access restricted
+            </strong>
+
+            <p>
+                The request pattern resembles systematic
+                decision-boundary probing. The scheduler
+                continues operating, but the local explanation
+                is withheld.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- PROBE DEMO -->
+    <!-- ================================================= -->
+
+    <section class="card probe-card">
+
+        <div class="section-title">
+
+            <div>
+                <h2>Boundary Probe Simulation</h2>
+
+                <p>
+                    Simulate systematic variation of memory
+                    while keeping the other task properties fixed.
+                </p>
+            </div>
+
+        </div>
+
+
+        <button
+            class="probe-button"
+            onclick="runProbe()"
+        >
+            Run Boundary Probe
+        </button>
+
+
+        <div
+            id="probe-results"
+            class="hidden"
+        >
+
+            <div class="probe-chart">
+
+                <div class="chart-title">
+                    Memory → Scheduler Decision
+                </div>
+
+                <div id="probe-rows"></div>
+
+            </div>
+
+
+            <div
+                id="probe-warning"
+                class="probe-warning hidden"
+            >
+
+                <strong>
+                    Probe detected
+                </strong>
+
+                <p>
+                    Systematic boundary exploration has been
+                    detected. Further local explanations are
+                    restricted.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<footer>
+
+    <p>
+        Research Prototype · LOREsa + Probe-Aware Explanation Control
+    </p>
+
+</footer>
+
+
+<script
+    src="{{ url_for('static', filename='app.js') }}"
+></script>
+
+</body>
+</html>

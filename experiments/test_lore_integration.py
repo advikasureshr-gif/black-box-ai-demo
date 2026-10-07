@@ -6,8 +6,6 @@ sys.path.insert(
     str(Path(__file__).resolve().parents[1])
 )
 
-import pandas as pd
-
 from src.scheduler import TaskScheduler
 from src.scheduler_data import generate_tasks
 
@@ -17,11 +15,11 @@ from lore_sa.bbox import sklearnBBox
 
 
 # --------------------------------------------------
-# 1. Generate scheduler dataset
+# 1. Generate representative scheduling data
 # --------------------------------------------------
 
 data = generate_tasks(
-    n=500,
+    n=1000,
     random_state=42
 )
 
@@ -29,20 +27,31 @@ print("Dataset:")
 print(data.head())
 
 print("\nVM distribution:")
-print(data["assigned_vm"].value_counts().sort_index())
+print(
+    data["assigned_vm"]
+    .value_counts()
+    .sort_index()
+)
 
 
 # --------------------------------------------------
-# 2. Create black-box scheduler
+# 2. Create the BLACK-BOX ML scheduler
 # --------------------------------------------------
 
 scheduler = TaskScheduler()
+
+print("\nML scheduler created.")
+
+
+# --------------------------------------------------
+# 3. Wrap scheduler for LOREsa
+# --------------------------------------------------
 
 bbox = sklearnBBox(scheduler)
 
 
 # --------------------------------------------------
-# 3. Tell LOREsa what the dataset looks like
+# 4. Describe scheduler input/output to LOREsa
 # --------------------------------------------------
 
 dataset = TabularDataset(
@@ -52,7 +61,7 @@ dataset = TabularDataset(
 
 
 # --------------------------------------------------
-# 4. Create LOREsa explainer
+# 5. Create LOREsa explainer
 # --------------------------------------------------
 
 explainer = TabularGeneticGeneratorLore(
@@ -62,25 +71,38 @@ explainer = TabularGeneticGeneratorLore(
 
 
 # --------------------------------------------------
-# 5. Select one task to explain
+# 6. Pick a task
 # --------------------------------------------------
 
-instance = data.drop(
-    columns=["assigned_vm"]
-).iloc[0].values
-
-
-print("\nInstance being explained:")
-print(instance)
-
-print(
-    "\nScheduler decision:",
-    scheduler.predict(instance.reshape(1, -1))[0]
+instance = (
+    data
+    .drop(columns=["assigned_vm"])
+    .iloc[0]
+    .values
 )
 
 
+print("\n========================================")
+print("TASK TO EXPLAIN")
+print("========================================")
+
+print(instance)
+
+
 # --------------------------------------------------
-# 6. Generate explanation
+# 7. Ask the black-box scheduler
+# --------------------------------------------------
+
+prediction = scheduler.predict(
+    instance.reshape(1, -1)
+)[0]
+
+print("\nML Scheduler decision:")
+print(prediction)
+
+
+# --------------------------------------------------
+# 8. Generate LOREsa explanation
 # --------------------------------------------------
 
 print("\nGenerating LOREsa explanation...")
@@ -92,19 +114,25 @@ explanation = explainer.explain(
 
 
 # --------------------------------------------------
-# 7. Display results
+# 9. Display explanation
 # --------------------------------------------------
 
-print("\n========== LOREsa RESULT ==========")
+print("\n========================================")
+print("LOREsa EXPLANATION")
+print("========================================")
 
 print("\nRule:")
 print(explanation["rule"])
 
 print("\nCounterfactuals:")
-print(explanation["counterfactuals"])
+for counterfactual in explanation["counterfactuals"]:
+    print(counterfactual)
 
 print("\nFidelity:")
 print(explanation["fidelity"])
 
 print("\nFeature importances:")
-print(explanation["feature_importances"])
+for feature, importance in explanation["feature_importances"]:
+    print(
+        f"{feature}: {importance:.4f}"
+    )
