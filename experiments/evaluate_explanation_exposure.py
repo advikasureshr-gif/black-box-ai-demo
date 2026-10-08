@@ -17,10 +17,6 @@ PROBE_THRESHOLD = 0.60
 SESSIONS_PER_PROBE = 30
 
 
-# ----------------------------------------------------------------------
-# Probe configurations
-# ----------------------------------------------------------------------
-
 PROBES = {
     "Memory scan": {
         "feature": "memory_required",
@@ -73,14 +69,13 @@ def run_unblocked_session(
     base_task,
 ):
     """
-    Simulate an unrestricted XAI system.
+    Unprotected baseline.
 
-    Every query is assumed to receive a local explanation.
-    The detector is not used to restrict access.
+    Every requested explanation is released.
     """
 
-    decisions = []
     explanations_exposed = 0
+    decisions = []
 
     for value in values:
         task = make_task(
@@ -92,20 +87,11 @@ def run_unblocked_session(
         decision = scheduler.predict(task)[0]
 
         decisions.append(decision)
-
-        # In the unblocked baseline, every requested
-        # explanation is released.
         explanations_exposed += 1
 
-    transitions = sum(
-        decisions[i] != decisions[i - 1]
-        for i in range(1, len(decisions))
-    )
-
     return {
-        "queries": len(values),
+        "queries": len(list(values)),
         "decisions": decisions,
-        "decision_transitions": transitions,
         "explanations_exposed": explanations_exposed,
     }
 
@@ -118,21 +104,26 @@ def run_blocked_session(
     base_task,
 ):
     """
-    Run the same probe through the proposed
-    probe-aware explanation guard.
+    Protected system.
 
     The scheduler always returns a decision.
-    Only explanation access is restricted.
+    The guard controls whether the explanation is released.
     """
 
     logger = QueryLogger()
 
-    decisions = []
     explanations_exposed = 0
+    decisions = []
     detection_query = None
 
-    for query_number, value in enumerate(values, start=1):
+    guard = ExplanationGuard(
+        detector=detector
+    )
 
+    for query_number, value in enumerate(
+        values,
+        start=1,
+    ):
         task = make_task(
             base_task,
             feature,
@@ -140,7 +131,6 @@ def run_blocked_session(
         )
 
         decision = scheduler.predict(task)[0]
-
         decisions.append(decision)
 
         logger.log_query(
@@ -150,33 +140,23 @@ def run_blocked_session(
             explanation_released=False,
         )
 
-        guard = ExplanationGuard(
-            detector=detector
-        )
-
         guard_result = guard.evaluate(
             logger.get_history()
         )
 
         if guard_result["explanation_allowed"]:
             explanations_exposed += 1
-            logger.history[-1]["explanation_released"] = True
 
-        if (
-            guard_result["is_probe"]
-            and detection_query is None
-        ):
+            logger.history[-1][
+                "explanation_released"
+            ] = True
+
+        elif detection_query is None:
             detection_query = query_number
 
-    transitions = sum(
-        decisions[i] != decisions[i - 1]
-        for i in range(1, len(decisions))
-    )
-
     return {
-        "queries": len(values),
+        "queries": len(list(values)),
         "decisions": decisions,
-        "decision_transitions": transitions,
         "explanations_exposed": explanations_exposed,
         "detection_query": detection_query,
     }
@@ -196,10 +176,6 @@ def evaluate_probe(
 
     for _ in range(n_sessions):
 
-        # --------------------------------------------------------------
-        # Unblocked baseline
-        # --------------------------------------------------------------
-
         unblocked = run_unblocked_session(
             scheduler=scheduler,
             feature=feature,
@@ -207,20 +183,16 @@ def evaluate_probe(
             base_task=base_task,
         )
 
-        unblocked_exposures.append(
-            unblocked["explanations_exposed"]
-        )
-
-        # --------------------------------------------------------------
-        # Protected system
-        # --------------------------------------------------------------
-
         blocked = run_blocked_session(
             scheduler=scheduler,
             detector=detector,
             feature=feature,
             values=values,
             base_task=base_task,
+        )
+
+        unblocked_exposures.append(
+            unblocked["explanations_exposed"]
         )
 
         blocked_exposures.append(
@@ -246,25 +218,27 @@ def evaluate_probe(
         else None
     )
 
-    max_queries = len(list(values))
-
     exposure_reduction = (
         1.0
         - (mean_blocked / mean_unblocked)
     )
 
     return {
-        "unblocked": mean_unblocked,
-        "blocked": mean_blocked,
-        "reduction": exposure_reduction,
-        "detection_query": mean_detection,
+        "unblocked_explanations": mean_unblocked,
+        "blocked_explanations": mean_blocked,
+        "exposure_reduction": exposure_reduction,
+        "mean_detection_query": mean_detection,
         "detections": len(detection_queries),
         "total_sessions": n_sessions,
-        "max_queries": max_queries,
     }
 
 
-def main():
+def run_evaluation():
+    """
+    Run the complete explanation-exposure evaluation.
+
+    Returns structured results for the final evaluation runner.
+    """
 
     scheduler = TaskScheduler()
 
@@ -272,18 +246,72 @@ def main():
         probe_threshold=PROBE_THRESHOLD
     )
 
+    probe_results = {}
+
+    for probe_name, config in PROBES.items():
+
+        probe_results[probe_name] = evaluate_probe(
+            scheduler=scheduler,
+            detector=detector,
+            feature=config["feature"],
+            values=config["values"],
+            base_task=config["base_task"],
+            n_sessions=SESSIONS_PER_PROBE,
+        )
+
+    mean_unblocked = float(
+        np.mean([
+            result["unblocked_explanations"]
+            for result in probe_results.values()
+        ])
+    )
+
+    mean_blocked = float(
+        np.mean([
+            result["blocked_explanations"]
+            for result in probe_results.values()
+        ])
+    )
+
+    overall_reduction = (
+        1.0
+        - (mean_blocked / mean_unblocked)
+    )
+
+    return {
+        "configuration": {
+            "sessions_per_probe": SESSIONS_PER_PROBE,
+            "probe_threshold": PROBE_THRESHOLD,
+        },
+        "probe_results": probe_results,
+        "overall": {
+            "mean_unblocked_explanations": mean_unblocked,
+            "mean_blocked_explanations": mean_blocked,
+            "overall_exposure_reduction": overall_reduction,
+        },
+    }
+
+
+def print_results(results):
+
     print("=" * 70)
     print("EXPLANATION EXPOSURE EVALUATION")
     print("=" * 70)
 
+    config = results["configuration"]
+
     print()
     print("Configuration")
     print("-" * 70)
+
     print(
-        f"Sessions/probe   : {SESSIONS_PER_PROBE}"
+        f"Sessions/probe   : "
+        f"{config['sessions_per_probe']}"
     )
+
     print(
-        f"Probe threshold  : {PROBE_THRESHOLD}"
+        f"Probe threshold  : "
+        f"{config['probe_threshold']}"
     )
 
     print()
@@ -300,36 +328,24 @@ def main():
 
     print("-" * 70)
 
-    all_results = {}
-
-    for probe_name, config in PROBES.items():
-
-        result = evaluate_probe(
-            scheduler=scheduler,
-            detector=detector,
-            feature=config["feature"],
-            values=config["values"],
-            base_task=config["base_task"],
-            n_sessions=SESSIONS_PER_PROBE,
-        )
-
-        all_results[probe_name] = result
+    for probe_name, result in results[
+        "probe_results"
+    ].items():
 
         reduction_percent = (
-            result["reduction"] * 100
+            result["exposure_reduction"] * 100
         )
 
-        if result["detection_query"] is not None:
-            detection = (
-                f"{result['detection_query']:.2f}"
-            )
-        else:
-            detection = "N/A"
+        detection = (
+            f"{result['mean_detection_query']:.2f}"
+            if result["mean_detection_query"] is not None
+            else "N/A"
+        )
 
         print(
             f"{probe_name:<18}"
-            f"{result['unblocked']:<14.2f}"
-            f"{result['blocked']:<14.2f}"
+            f"{result['unblocked_explanations']:<14.2f}"
+            f"{result['blocked_explanations']:<14.2f}"
             f"{reduction_percent:<14.1f}%"
             f"{detection:<14}"
         )
@@ -337,24 +353,7 @@ def main():
     print()
     print("=" * 70)
 
-    # --------------------------------------------------------------
-    # Overall result
-    # --------------------------------------------------------------
-
-    total_unblocked = sum(
-        result["unblocked"]
-        for result in all_results.values()
-    )
-
-    total_blocked = sum(
-        result["blocked"]
-        for result in all_results.values()
-    )
-
-    overall_reduction = (
-        1.0
-        - (total_blocked / total_unblocked)
-    )
+    overall = results["overall"]
 
     print()
     print("Overall")
@@ -362,17 +361,19 @@ def main():
 
     print(
         f"Mean explanations exposed "
-        f"(unblocked): {total_unblocked / len(PROBES):.2f}"
+        f"(unblocked): "
+        f"{overall['mean_unblocked_explanations']:.2f}"
     )
 
     print(
         f"Mean explanations exposed "
-        f"(blocked):   {total_blocked / len(PROBES):.2f}"
+        f"(blocked):   "
+        f"{overall['mean_blocked_explanations']:.2f}"
     )
 
     print(
         f"Overall exposure reduction: "
-        f"{overall_reduction * 100:.1f}%"
+        f"{overall['overall_exposure_reduction'] * 100:.1f}%"
     )
 
     print()
@@ -380,4 +381,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    results = run_evaluation()
+    print_results(results)
