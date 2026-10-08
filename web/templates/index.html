@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Explainable AI Task Scheduler</title>
+    <title>AI Task Scheduler</title>
 
     <link
         rel="stylesheet"
@@ -15,10 +15,15 @@
 
 <body>
 
+<!-- =========================================================
+     HEADER
+     ========================================================= -->
+
 <header class="header">
 
     <div>
         <h1>AI Task Scheduler</h1>
+
         <p>
             Explainable scheduling with probe-aware explanation control
         </p>
@@ -34,26 +39,210 @@
 
 <main class="container">
 
-    <!-- ================================================= -->
-    <!-- NORMAL TASK -->
-    <!-- ================================================= -->
+
+    <!-- =====================================================
+         SYSTEM ARCHITECTURE
+         ===================================================== -->
+
+    <section class="architecture-card">
+
+        <div class="architecture-title">
+            SYSTEM ARCHITECTURE
+        </div>
+
+        <div class="architecture-flow">
+
+            <div class="architecture-node">
+
+                <span class="node-label">
+                    INPUT
+                </span>
+
+                <strong>
+                    Task
+                </strong>
+
+            </div>
+
+
+            <div class="flow-arrow">
+                →
+            </div>
+
+
+            <div class="architecture-node">
+
+                <span class="node-label">
+                    BLACK BOX
+                </span>
+
+                <strong>
+                    AI Scheduler
+                </strong>
+
+            </div>
+
+
+            <div class="flow-arrow">
+                →
+            </div>
+
+
+            <div class="architecture-node">
+
+                <span class="node-label">
+                    OUTPUT
+                </span>
+
+                <strong>
+                    VM Decision
+                </strong>
+
+            </div>
+
+
+            <div class="flow-arrow">
+                →
+            </div>
+
+
+            <div class="architecture-node monitor-node">
+
+                <span class="node-label">
+                    MONITOR
+                </span>
+
+                <strong>
+                    Probe Detector
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="architecture-branches">
+
+
+            <!-- NORMAL -->
+
+            <div class="architecture-branch normal-branch">
+
+                <div class="branch-header">
+
+                    <span class="branch-indicator green"></span>
+
+                    NORMAL INTERACTION
+
+                </div>
+
+                <div class="branch-flow">
+
+                    <strong>
+                        LOREsa
+                    </strong>
+
+                    <span>
+                        →
+                    </span>
+
+                    <strong>
+                        Explanation Released
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- PROBE -->
+
+            <div class="architecture-branch probe-branch">
+
+                <div class="branch-header">
+
+                    <span class="branch-indicator red"></span>
+
+                    PROBE DETECTED
+
+                </div>
+
+                <div class="branch-flow">
+
+                    <strong>
+                        Explanation Guard
+                    </strong>
+
+                    <span>
+                        →
+                    </span>
+
+                    <strong>
+                        Explanation Restricted
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         RESEARCH CONTEXT
+         ===================================================== -->
+
+    <section class="research-note">
+
+        <div class="research-note-title">
+            RESEARCH DEMONSTRATION
+        </div>
+
+        <p>
+            Local explanations can reveal information about a
+            black-box model's decision boundaries when repeatedly
+            queried. This prototype demonstrates a probe-aware
+            explanation layer: normal users receive LOREsa
+            explanations, while systematic boundary exploration
+            can trigger selective explanation restriction without
+            disabling the underlying scheduler.
+        </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         NORMAL TASK
+         ===================================================== -->
 
     <section class="card">
 
         <div class="section-title">
+
             <div>
-                <h2>Schedule a Task</h2>
+
+                <h2>
+                    Schedule a Task
+                </h2>
+
                 <p>
                     Submit a task and inspect the local explanation.
                 </p>
+
             </div>
+
         </div>
 
 
         <div class="form-grid">
 
+
             <label>
+
                 CPU Required
+
                 <input
                     id="cpu"
                     type="number"
@@ -61,10 +250,14 @@
                     max="16"
                     value="2"
                 >
+
             </label>
 
+
             <label>
+
                 Memory Required
+
                 <input
                     id="memory"
                     type="number"
@@ -72,10 +265,14 @@
                     max="32"
                     value="17"
                 >
+
             </label>
 
+
             <label>
+
                 Priority
+
                 <input
                     id="priority"
                     type="number"
@@ -83,10 +280,14 @@
                     max="10"
                     value="6"
                 >
+
             </label>
 
+
             <label>
+
                 Deadline
+
                 <input
                     id="deadline"
                     type="number"
@@ -94,10 +295,14 @@
                     max="300"
                     value="146"
                 >
+
             </label>
 
+
             <label>
+
                 Queue Length
+
                 <input
                     id="queue"
                     type="number"
@@ -105,6 +310,7 @@
                     max="20"
                     value="3"
                 >
+
             </label>
 
         </div>
@@ -120,9 +326,9 @@
     </section>
 
 
-    <!-- ================================================= -->
-    <!-- RESULT -->
-    <!-- ================================================= -->
+    <!-- =====================================================
+         SCHEDULER RESULT
+         ===================================================== -->
 
     <section
         id="result-section"
@@ -130,6 +336,9 @@
     >
 
         <div class="result-grid">
+
+
+            <!-- VM -->
 
             <div>
 
@@ -147,10 +356,12 @@
             </div>
 
 
+            <!-- PROBE SCORE -->
+
             <div>
 
                 <span class="label">
-                    Probe Score
+                    Probe Risk Score
                 </span>
 
                 <div
@@ -160,31 +371,56 @@
                     0.00
                 </div>
 
+                <div class="score-description">
+                    0 = normal · 1 = strong probing signal
+                </div>
+
             </div>
 
         </div>
 
 
+        <!-- =================================================
+             LOREsa EXPLANATION
+             ================================================= -->
+
         <div id="explanation-box">
 
-            <h3>LOREsa Explanation</h3>
+            <h3>
+                LOREsa Explanation
+            </h3>
+
 
             <div
                 id="rule"
                 class="rule"
             ></div>
 
-            <h4>Counterfactuals</h4>
+
+            <h4>
+                Counterfactuals
+            </h4>
+
 
             <div id="counterfactuals"></div>
 
+
             <div class="fidelity">
+
                 Fidelity:
-                <strong id="fidelity"></strong>
+
+                <strong id="fidelity">
+                    —
+                </strong>
+
             </div>
 
         </div>
 
+
+        <!-- =================================================
+             BLOCKED EXPLANATION
+             ================================================= -->
 
         <div
             id="blocked-box"
@@ -207,21 +443,25 @@
     </section>
 
 
-    <!-- ================================================= -->
-    <!-- PROBE DEMO -->
-    <!-- ================================================= -->
+    <!-- =====================================================
+         BOUNDARY PROBE
+         ===================================================== -->
 
     <section class="card probe-card">
 
         <div class="section-title">
 
             <div>
-                <h2>Boundary Probe Simulation</h2>
+
+                <h2>
+                    Boundary Probe Simulation
+                </h2>
 
                 <p>
                     Simulate systematic variation of memory
                     while keeping the other task properties fixed.
                 </p>
+
             </div>
 
         </div>
@@ -235,6 +475,10 @@
         </button>
 
 
+        <!-- =================================================
+             PROBE RESULTS
+             ================================================= -->
+
         <div
             id="probe-results"
             class="hidden"
@@ -243,13 +487,20 @@
             <div class="probe-chart">
 
                 <div class="chart-title">
-                    Memory → Scheduler Decision
+                    MEMORY → SCHEDULER DECISION
                 </div>
 
-                <div id="probe-rows"></div>
+
+                <div
+                    id="probe-rows"
+                ></div>
 
             </div>
 
+
+            <!-- =================================================
+                 PROBE WARNING
+                 ================================================= -->
 
             <div
                 id="probe-warning"
@@ -275,6 +526,10 @@
 </main>
 
 
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+
 <footer>
 
     <p>
@@ -284,9 +539,14 @@
 </footer>
 
 
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
+
 <script
     src="{{ url_for('static', filename='app.js') }}"
 ></script>
 
 </body>
+
 </html>

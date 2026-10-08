@@ -561,3 +561,218 @@ footer {
         grid-template-columns: 60px 1fr 90px;
     }
 }
+/* =========================================================
+   SYSTEM ARCHITECTURE
+   ========================================================= */
+
+.architecture-card {
+    padding: 24px 28px;
+
+    background: #0f0b13;
+
+    border: 1px solid #4b3858;
+}
+
+.architecture-title {
+    margin-bottom: 20px;
+
+    color: #806e8e;
+
+    font-size: 10px;
+
+    letter-spacing: 1.5px;
+}
+
+
+/* Main pipeline */
+
+.architecture-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+}
+
+.architecture-node {
+    min-width: 145px;
+
+    padding: 14px 18px;
+
+    background: #151019;
+
+    border: 1px solid #493952;
+
+    text-align: center;
+}
+
+.architecture-node strong {
+    display: block;
+
+    margin-top: 6px;
+
+    color: #d8bff0;
+
+    font-size: 12px;
+}
+
+.node-label {
+    color: #6f6079;
+
+    font-size: 8px;
+
+    letter-spacing: 1px;
+}
+
+.monitor-node {
+    border-color: #806098;
+}
+
+.flow-arrow {
+    color: #806e8e;
+
+    font-size: 18px;
+}
+
+
+/* Branches */
+
+.architecture-branches {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 14px;
+
+    margin-top: 18px;
+}
+
+.architecture-branch {
+    padding: 14px 16px;
+
+    background: #0a080d;
+
+    border: 1px solid #33263c;
+}
+
+.normal-branch {
+    border-left: 3px solid #5bd98a;
+}
+
+.probe-branch {
+    border-left: 3px solid #e76b78;
+}
+
+.branch-header {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 10px;
+
+    color: #806e8e;
+
+    font-size: 9px;
+
+    letter-spacing: 0.8px;
+}
+
+.branch-indicator {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+}
+
+.branch-indicator.green {
+    background: #72d69a;
+
+    box-shadow: 0 0 7px rgba(114, 214, 154, 0.5);
+}
+
+.branch-indicator.red {
+    background: #e76b78;
+
+    box-shadow: 0 0 7px rgba(231, 107, 120, 0.5);
+}
+
+.branch-flow {
+    display: flex;
+    align-items: center;
+
+    gap: 12px;
+
+    color: #8f7d9e;
+
+    font-size: 11px;
+}
+
+.normal-branch .branch-flow strong:first-child {
+    color: #76e59f;
+}
+
+.probe-branch .branch-flow strong:first-child {
+    color: #f0838d;
+}
+
+.branch-flow strong:last-child {
+    color: #b9a9c4;
+}
+
+
+/* =========================================================
+   RESEARCH CONTEXT
+   ========================================================= */
+
+.research-note {
+    padding: 20px 22px;
+
+    background: #100c14;
+
+    border: 1px solid #33263c;
+
+    border-left: 3px solid #a87bc7;
+}
+
+.research-note-title {
+    margin-bottom: 10px;
+
+    color: #caa9df;
+
+    font-size: 12px;
+}
+
+.research-note p {
+    margin: 0;
+
+    max-width: 900px;
+
+    color: #8f7d9e;
+
+    font-size: 11px;
+
+    line-height: 1.8;
+}
+
+
+/* =========================================================
+   ARCHITECTURE RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 850px) {
+
+    .architecture-flow {
+        justify-content: flex-start;
+    }
+
+    .architecture-branches {
+        grid-template-columns: 1fr;
+    }
+
+    .flow-arrow {
+        display: none;
+    }
+}
