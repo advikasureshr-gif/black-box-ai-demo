@@ -1,183 +1,155 @@
-# Unmasking Deceptive Explanations in AI-Assisted Recruitment
-## A Study of Scaffolding Attacks on Local Rule-Based Explainers
+# Revealing Hidden Bias in Black-Box AI
 
-## 1. Overview
+### Investigating Scaffolding Attacks, Local Explanations, and Hidden Decision Patterns
 
-AI-assisted recruitment systems can help evaluate candidates, but their decisions may reflect unintended or deliberately introduced biases. Explainability methods are often used to make these decisions more transparent. However, an explanation may not faithfully represent the behavior of the model being explained if the model can recognize when it is being examined.
+> A research prototype for investigating whether a black-box AI system's observable explanations faithfully reflect its ordinary prediction behaviour.
 
-This project investigates whether a **scaffolding attack** can conceal an age-based preference in a simulated recruitment model from a local rule-based explainer.
+## Overview
 
-We will create synthetic candidate profiles with two primary features:
+Black-box AI systems are used to make or support decisions, but their internal decision processes may be difficult to inspect. Local explainability methods attempt to make these systems more understandable by approximating their behaviour around a particular input. However, an explanation can be misleading if a system behaves differently when it suspects that it is being examined.
 
-- **Age:** The candidate's age.
-- **Technical proficiency:** A numerical score representing technical ability.
+This project explores how **systematic probing, local rule-based explanations, and query-pattern monitoring can help reveal discrepancies between a model's apparent behaviour and its ordinary predictions**. It investigates a scaffolding-style scenario in which a wrapper attempts to recognise explanation probes and return benign predictions during probing, while using a different model for ordinary inputs.
 
-The experiment compares a fair baseline model, an age-biased model, and a scaffolded version of the biased model. A simplified local rule-based explainer will approximate the decision process around individual candidates and generate human-readable rules.
+The project is **not limited to recruitment**. Hiring is one controlled example used to demonstrate an age-related decision disparity. The broader research idea can be adapted to investigate potential bias or unexpected decision patterns in other black-box AI systems, including lending, education, healthcare, content moderation, insurance, and resource allocation. Applying it to another domain requires suitable data, features, model interfaces, and evaluation criteria; those domain-specific pipelines are not all implemented here.
 
-The implementation will be a lightweight, reproducible proof of concept using Python and scikit-learn. The explainer will be **LORE-inspired**, rather than a complete implementation of the original LORE algorithm.
+This repository is a proof of concept, not a production-ready fairness auditor. Its synthetic examples can demonstrate a method under controlled conditions, but they do not establish that any real-world system is biased or fair.
 
-## 2. Problem Statement
+## The central question
 
-A recruitment model may favour younger candidates even when candidates have equivalent technical proficiency. A local explainer should ideally reveal the model's reliance on age.
+**Can a model conceal a known decision pattern from a local explainer by behaving differently when it detects explanation queries, and can systematic testing help reveal the discrepancy?**
 
-However, a model designed to behave differently when it detects synthetic explanation queries could return apparently fair predictions to the explainer while continuing to make age-biased decisions on ordinary candidate profiles.
+The recruitment case study makes this question concrete: if two synthetic candidates have the same technical proficiency but different ages, does the model treat them differently? If the system behaves differently when queried by an explainer, does the explanation reflect the model's ordinary behaviour?
 
-This creates a gap between the model's actual behaviour and the behaviour suggested by its explanation.
+The same investigation pattern can be adapted to other domains by defining the relevant inputs, outcomes, groups or conditions, and domain-appropriate metrics.
 
-The project studies whether this discrepancy can be demonstrated in a controlled synthetic setting and whether more realistic neighbourhood generation can help expose it.
+## Why this matters
 
-## 3. Research Question
+A user may only see a final prediction, such as:
 
-**Can a scaffolding attack conceal an age-based preference in an AI recruitment model from a local rule-based explainer when candidate technical proficiency is held constant, and can more realistic neighbourhood generation improve detection?**
+- **Hiring:** shortlisted / not shortlisted
+- **Lending:** approved / rejected
+- **Education:** score or assessment outcome
+- **Content moderation:** allowed / flagged
+- **Resource allocation:** assigned / not assigned
 
-### Objectives
+A local explanation may offer readable rules for one input, but reviewers still need to ask:
 
-1. Generate synthetic candidate profiles with independently controlled age and technical proficiency.
-2. Build a fair baseline model and a deliberately age-biased model.
-3. Implement a scaffolding mechanism that attempts to recognise explanation queries and return benign predictions for them.
-4. Build a simplified local rule-based explainer that approximates model decisions near a candidate profile.
-5. Compare explanations and model decisions with and without scaffolding.
-6. Evaluate whether realistic neighbourhood generation reduces the discrepancy between explanations and actual model behaviour.
+1. Does the explanation approximate the model that actually serves ordinary predictions?
+2. Do outcomes change when one feature is varied while other relevant features are held constant?
+3. Are explanations stable across reasonable neighbourhood samples and repeated runs?
+4. Does the system appear to behave differently during explanation probing?
+5. Could probe-detection logic block legitimate auditors or ordinary users?
 
-## 4. Methodology
+A difference in outcomes is a signal to investigate, not automatic proof of discrimination. Fairness assessments require appropriate context, metrics, and domain expertise.
 
-### 4.1 Synthetic Dataset
+## Current implementation
 
-Generate fictional candidate profiles containing:
+The supplied code contains two related experimental paths. They share the broad motivation of investigating black-box behaviour, explanations, and probing, but **they are not yet integrated into one domain-independent end-to-end pipeline**.
 
-| Feature | Description |
+### 1. Synthetic recruitment-bias experiment
+
+`data_generator.py` generates synthetic candidate profiles with:
+
+- `age` — a candidate's age
+- `proficiency` — a simulated technical proficiency score
+- `fair_hired` — a baseline hiring label
+- `biased_hired` — a deliberately age-sensitive hiring label
+
+The baseline and age-sensitive labels make it possible to construct a controlled example in which technical proficiency is isolated from age. No real applicant data is required.
+
+`models.py` trains two logistic-regression models:
+
+- **Baseline model:** uses technical proficiency as its input feature.
+- **Age-sensitive model:** uses age and technical proficiency.
+
+`scaffold.py` defines a `ScaffoldedRecruitmentModel` wrapper that routes ordinary predictions to the age-sensitive model and inputs marked as probes to the baseline model. This demonstrates the concept of selective behaviour during probing; it does not by itself prove that the detector can identify realistic or adaptive explanation queries.
+
+### 2. Local explanation and query-monitoring path
+
+The explanation and monitoring modules explore how a local surrogate and query history can be used in an investigation:
+
+- `explainer.py` generates a local neighbourhood, queries a predictor, fits a shallow decision tree, and extracts readable rules with a local-fidelity estimate.
+- `lore_explainer.py` adapts a predictor and tabular reference data for the LOREsa library.
+- `query_logger.py` records query history and associated prediction/explanation information.
+- `probe_detector.py` uses heuristic signals in query patterns to calculate a probe score.
+- `explanation_guard.py` uses probe-detection output to control explanation release.
+- `explanation_service.py` coordinates prediction, logging, probe detection, and explanation release.
+
+The Flask application in `app.py` currently initialises the task-scheduling example and its explanation service. `scheduler.py` and `scheduler_data.py` use task-scheduling features such as CPU requirements, memory, priority, deadline, and queue length, with `assigned_vm` as the target. Therefore, the current web-app path is **a scheduling demo**, not a fully integrated recruitment-bias web application.
+
+## Research workflow
+
+The intended investigation can be described in the following stages:
+
+```text
+Choose a black-box model and define an audit question
+                         |
+                         v
+              Generate or collect inputs
+                         |
+                         v
+          Query the model and log outcomes
+                         |
+                         v
+        Vary relevant features systematically
+                         |
+                         v
+       Generate local explanations if supported
+                         |
+                         v
+ Compare explanations with ordinary predictions
+                         |
+                         v
+     Evaluate patterns, uncertainty, and limitations
+```
+
+This is the general research workflow, not a claim that every stage is currently connected through one executable pipeline in this repository.
+
+## Methodology for the recruitment case study
+
+### 1. Synthetic dataset
+
+Candidate age and technical proficiency are generated for a controlled experiment. Synthetic data avoids using identifiable applicant information and makes the intended relationship easier to inspect. The experiment intentionally keeps the feature set small; real recruitment decisions involve many additional factors and legal considerations.
+
+### 2. Baseline and age-sensitive models
+
+A proficiency-only model serves as a reference, while a model using age and proficiency represents a deliberately age-sensitive alternative. Candidate pairs with equal proficiency but different ages can be used to examine whether age changes the prediction.
+
+### 3. Scaffolding-style wrapper
+
+The wrapper simulates a system that routes probe-labelled inputs to a baseline model and ordinary inputs to an age-sensitive model. This creates a controlled discrepancy to investigate. The current implementation should be understood as a limited proof of concept: probe recognition depends on how the query is identified, and this is not evidence that a real system could reliably recognise a sophisticated explainer.
+
+### 4. Local rule-based explanation
+
+The simplified explainer:
+
+1. Takes one input as the instance to explain.
+2. Generates nearby samples.
+3. Queries the selected predictor for their outputs.
+4. Fits a shallow decision tree to approximate those local outputs.
+5. Extracts readable decision rules and estimates local fidelity.
+
+This is **LORE-inspired**, not a complete reproduction of the original LORE algorithm or its full counterfactual-generation procedure.
+
+### 5. Query-pattern monitoring
+
+The query-monitoring modules look for patterns such as systematic feature variation, monotonic scans, repeated queries, decision transitions, and high query volume. Such signals can help identify unusual probing behaviour, but they can also arise from legitimate audits, testing, or normal usage. A probe score is not proof of malicious intent.
+
+## Evaluation ideas
+
+The following metrics are useful research directions. They should be reported only where the relevant experiment has actually been run.
+
+| Metric | What it investigates |
 |---|---|
-| Age | Candidate age, sampled from a defined range |
-| Technical proficiency | Score on a scale of 0–100 |
-| Hiring label | Simulated hiring decision |
+| Selection-rate difference | Whether outcome rates differ between defined groups in the synthetic recruitment example |
+| Feature sensitivity | Whether changing one feature while holding others fixed changes a prediction |
+| Local fidelity | How closely a local surrogate matches the queried model on held-out neighbourhood samples |
+| Explanation stability | Whether explanations change substantially across reasonable samples or random seeds |
+| Probe-detection precision and recall | How well the detector identifies labelled probes, including false positives and false negatives |
+| Attack success rate | How often an explanation conceals a known pattern while ordinary predictions still exhibit it, under a predefined criterion |
+| Runtime | Approximate cost of data generation, querying, explanation, and evaluation |
 
-Age and technical proficiency will be generated independently to avoid accidentally associating older or younger candidates with higher proficiency.
-
-No real candidate data or personally identifiable information will be used.
-
-Experience is intentionally excluded from the initial experiment. This isolates age preference from the legitimate possibility that recruiters may value prior experience.
-
-### 4.2 Fair Baseline Model
-
-Build a baseline recruitment model whose decisions depend on technical proficiency and do not depend on age.
-
-This model provides a reference for assessing whether the biased model treats equally proficient candidates differently based on age.
-
-### 4.3 Age-Biased Model
-
-Create a second model that deliberately favours younger candidates, even when technical proficiency is held constant.
-
-The bias will be introduced through a controlled decision rule or synthetic training labels. Its effect will be tested using candidate pairs with equal proficiency and different ages.
-
-The experiment will verify that the intended bias is actually present before evaluating the attack.
-
-### 4.4 Scaffolding Attack
-
-Wrap the biased model with a mechanism that attempts to identify inputs generated during explanation queries.
-
-When a query is classified as an explanation probe, the wrapper will attempt to return a benign prediction. For ordinary candidate profiles, it will use the age-biased model.
-
-This creates two behaviours to compare:
-
-- **Ordinary inference:** The model uses the biased decision process.
-- **Explanation probing:** The wrapper attempts to conceal that behaviour.
-
-The detection mechanism and its limitations will be documented. In particular, a detector that exploits obvious differences between synthetic probes and normal profiles may demonstrate a limited proof of concept without establishing that the attack works against realistic or adaptive explainers.
-
-### 4.5 LORE-Inspired Local Rule-Based Explainer
-
-Implement a simplified local explainer that:
-
-1. Takes a candidate profile as the instance to explain.
-2. Generates nearby candidate profiles.
-3. Queries the model for their hiring predictions.
-4. Fits a shallow decision tree to approximate those local predictions.
-5. Extracts readable decision rules from the tree.
-
-The explainer will be used on the fair baseline, the biased model, and the scaffolded model.
-
-This implementation captures the basic idea of approximating local decision behaviour with rules. It does **not** reproduce every component of LORE, such as its full genetic-algorithm-based counterfactual generation process.
-
-### 4.6 Neighbourhood-Based Defence (Stretch Goal)
-
-Investigate whether making explanation neighbourhoods more realistic helps reveal the attack.
-
-Possible approaches include using training examples as a source of plausible nearby candidates, constraining generated profiles to valid ranges, and comparing predictions across different neighbourhood-generation strategies.
-
-The defence will be evaluated experimentally rather than assumed to be effective.
-
-## 5. Experimental Configurations
-
-| Configuration | Model | Explanation procedure | Purpose |
-|---|---|---|---|
-| A | Fair baseline | Local rule-based explainer | Establish reference behaviour |
-| B | Age-biased model | Local rule-based explainer | Determine whether age preference appears in the explanation |
-| C | Scaffolded biased model | Same explainer | Test whether scaffolding conceals the bias |
-| D *(stretch)* | Scaffolded biased model | Alternative, more realistic neighbourhood generation | Test a potential defence |
-
-Where possible, the same candidate profiles, random seeds, and evaluation settings will be used across configurations to make comparisons reproducible.
-
-## 6. Evaluation Metrics
-
-### 6.1 Selection-Rate Difference
-
-Compare hiring rates across age groups while holding technical proficiency constant.
-
-This checks whether the model's decisions change with age when the job-relevant feature is equivalent.
-
-### 6.2 Age Dependence in Explanations
-
-Record whether extracted rules use age and how strongly age appears to influence local decisions.
-
-The presence or absence of an age rule alone will not be treated as proof of fairness.
-
-### 6.3 Local Fidelity
-
-Measure how accurately the extracted local rule model predicts the decisions of the model being explained on held-out neighbourhood samples.
-
-Fidelity should be evaluated against the **actual deployed model or wrapper**, not just the benign model used during explanation probes.
-
-### 6.4 Attack Success Rate
-
-Define attack success in advance as the proportion of tested cases where the explanation conceals the known age preference while the actual model continues to exhibit that preference.
-
-Report the denominator and the exact success criteria alongside the result.
-
-### 6.5 Probe-Detection Performance
-
-Evaluate the scaffolding detector using precision, recall, F1-score, and a confusion matrix where applicable.
-
-This helps establish whether the detector distinguishes explanation probes from ordinary candidate inputs and whether it simply exploits obvious differences in their distributions.
-
-### 6.6 Runtime
-
-Record the approximate execution time for data generation, explanation generation, and evaluation.
-
-## 7. Expected Outputs
-
-The project will aim to produce:
-
-- A reproducible synthetic recruitment dataset generator.
-- A fair baseline and an age-biased recruitment model.
-- A scaffolding wrapper for controlled experimentation.
-- A simplified local rule-based explainer.
-- Side-by-side explanations for the experimental configurations.
-- Metrics describing selection disparities, local fidelity, and attack performance.
-- Plots comparing model decisions and explanation behaviour.
-- A discussion of limitations and possible defences.
-
-These are planned outputs, not predetermined results. The experiment may show that the attack fails, that its success depends on the neighbourhood distribution, or that the explainer exposes the bias despite scaffolding.
-
-## 8. Technology Stack
-
-- **Python** — implementation and experimentation
-- **NumPy** — numerical operations and synthetic data generation
-- **pandas** — dataset manipulation and result tables
-- **scikit-learn** — classification models, decision trees, and evaluation metrics
-- **Matplotlib** — visualisations
-- **pytest** *(optional)* — basic pipeline tests
-
-The initial implementation will avoid large pretrained models and unnecessary dependencies.
+For the scaffolding experiment, fidelity should be evaluated against the **actual deployed wrapper or predictor being audited**, not merely against the benign model used for selected probe queries. An explanation that omits a feature is not, on its own, proof that the model is fair.
 
 ## 9. Proposed Project Structure
 
@@ -206,28 +178,6 @@ recruitment-explanation-attack/
 
 The defence and test modules may initially contain only minimal implementations or be deferred until the core experiment works.
 
-## 10. Scope and Limitations
-
-This is an initial, controlled proof of concept rather than a comprehensive evaluation of recruitment systems or explainability methods.
-
-Important limitations include:
-
-- The data and hiring decisions are synthetic.
-- The local explainer is LORE-inspired, not the complete LORE algorithm.
-- A simple probe detector may exploit artefacts that a more realistic or adaptive explainer would avoid.
-- Results from one synthetic data distribution may not generalise to real recruitment systems.
-- Fairness metrics and local explanations capture different aspects of model behaviour; neither alone establishes that a recruitment system is fair.
-
-A future extension could compare the implementation with the original LORE method, investigate adaptive probing, and evaluate stronger defences.
-
-## 11. Research Contribution
-
-The intended contribution is a small, reproducible experiment investigating the relationship between scaffolding attacks, local rule-based explanations, and age-based decision disparities in AI-assisted recruitment.
-
-The study will focus on whether explanations faithfully reflect the deployed model's behaviour and under what conditions the discrepancy can be detected.
-
-The project will not claim that scaffolding attacks against local explainers are unprecedented. Any claim of novelty will require a separate review of existing work on deceptive model behaviour, LIME/SHAP scaffolding attacks, and LORE-style explainers.
-
 ## 12. Getting Started
 
 Install the required dependencies:
@@ -245,3 +195,53 @@ python experiments/run_experiment.py
 The script should generate the synthetic data, initialise the models, run the selected experiment configurations, and save evaluation results to the `results/` directory.
 
 Use fixed random seeds where appropriate so that the experiment can be reproduced and its results compared across configurations.
+
+
+## Extending the idea beyond recruitment
+
+To adapt this research approach to another black-box AI domain:
+
+1. **Define the audit question.** Identify the outcome or decision pattern to investigate.
+2. **Map the input schema.** Specify features, valid ranges, missing-value behaviour, and which features may be varied.
+3. **Choose meaningful comparisons.** Define groups or matched inputs in a way that fits the domain and avoids misleading conclusions.
+4. **Connect the predictor.** Use a consistent interface to query the actual model being audited.
+5. **Select explanations and metrics.** Choose local explanations and evaluation methods suitable for the model and data.
+6. **Validate the pipeline.** Test fidelity, stability, detector false positives/negatives, and reproducibility before interpreting results.
+7. **Document constraints.** Record assumptions, limitations, privacy concerns, and any domain-specific requirements.
+
+Possible application areas include lending, education, healthcare, insurance, content moderation, and automated resource allocation. These are **potential future adaptations**, not domains for which the current repository has already been validated.
+
+## Limitations and responsible use
+
+- The recruitment example uses synthetic data and deliberately controlled labels.
+- The local surrogate is LORE-inspired, not the complete LORE implementation.
+- The probe detector uses heuristics and may fail on realistic, adaptive, or distribution-matched probes.
+- The recruitment experiment and scheduling-oriented Flask pipeline are not yet unified behind a common model/data interface.
+- A high probe score does not prove malicious intent; legitimate auditors may make systematic queries.
+- Local explanations approximate behaviour around an input and may not represent the model globally.
+- Differences in model outputs do not alone establish unlawful discrimination or explain why a difference exists.
+- Results from synthetic examples should not be generalised to real systems without further testing.
+
+Do not use this prototype to make real employment, lending, healthcare, education, or other consequential decisions. For real-world audits, use appropriate authorisation, protect sensitive data, involve domain and fairness experts, and follow relevant legal and ethical requirements.
+
+## Future work
+
+- Unify the hiring and scheduling examples behind a documented, domain-independent predictor interface.
+- Connect data generation, model querying, explanation, monitoring, and evaluation in a reproducible end-to-end experiment.
+- Add tests for feature sensitivity, local fidelity, explanation stability, and detector performance.
+- Compare simple neighbourhood generation with more realistic, domain-valid neighbourhoods.
+- Evaluate adaptive probing and document threat-model assumptions.
+- Add structured experiment outputs and visualisations, with metrics and criteria defined before running experiments.
+- Investigate how an audit can remain useful without unfairly blocking legitimate explanation requests.
+
+## Research contribution
+
+The project explores a practical question in explainable AI and model auditing: **how can reviewers investigate a black-box system when its behaviour during explanation queries may not match its ordinary behaviour?** A synthetic recruitment example provides a controlled setting for studying age-sensitive decisions, while the broader approach motivates future adaptations to other domains.
+
+The repository is intended as a reproducible research prototype. It does not claim that scaffolding attacks are novel, that the current detector is robust, or that the pipeline is already validated across multiple domains. Those claims would require systematic experiments and a review of related work on deceptive model behaviour, explanation attacks, and local explainability methods.
+
+---
+
+**Status:** Research prototype; synthetic recruitment and scheduling examples; integration and validation ongoing.  
+**Primary goal:** Investigate hidden decision patterns and discrepancies between black-box behaviour and explanations.  
+**Scope:** Broader than hiring, but new domains require adaptation and validation.
