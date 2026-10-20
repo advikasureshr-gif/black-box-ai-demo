@@ -296,3 +296,6 @@ Use this project for research and controlled experimentation. Do not rely on it 
 ## Research contribution
 
 This project provides a controlled environment for studying the interaction between a black-box task scheduler, LOREsa-based local explanations, query-pattern monitoring, and explanation-release control. Its central focus is not merely to predict a VM assignment, but to investigate how explanations and systematic probing can help reviewers examine model behaviour—and how heuristic safeguards may affect access to those explanations.
+
+### Additional information
+To install LORE_sa in .venv, type command: python -m pip install -e ./lore_sa
