@@ -245,3 +245,6 @@ The repository is intended as a reproducible research prototype. It does not cla
 **Status:** Research prototype; synthetic recruitment and scheduling examples; integration and validation ongoing.  
 **Primary goal:** Investigate hidden decision patterns and discrepancies between black-box behaviour and explanations.  
 **Scope:** Broader than hiring, but new domains require adaptation and validation.
+
+### Additional information
+To install LORE_sa in .venv, type command: python -m pip install -e ./lore_sa
