@@ -1,246 +1,302 @@
-# Revealing Hidden Bias in Black-Box AI
+# Revealing Hidden Decision Patterns in Black-Box AI Scheduling
 
-### Investigating Scaffolding Attacks, Local Explanations, and Hidden Decision Patterns
+### Investigating LOREsa Explanations, Query Probing, and Explanation Access Control
 
-> A research prototype for investigating whether a black-box AI system's observable explanations faithfully reflect its ordinary prediction behaviour.
+> A research prototype for examining how a black-box task scheduler makes decisions, generating local explanations with LOREsa, and detecting query patterns that may indicate systematic probing.
 
 ## Overview
 
-Black-box AI systems are used to make or support decisions, but their internal decision processes may be difficult to inspect. Local explainability methods attempt to make these systems more understandable by approximating their behaviour around a particular input. However, an explanation can be misleading if a system behaves differently when it suspects that it is being examined.
+Machine-learning systems can make decisions that are difficult to inspect from their outputs alone. In task scheduling, an AI model may assign a task to a virtual machine (VM) based on factors such as CPU requirements, memory requirements, priority, deadline, and queue length. A prediction tells us which VM was selected, but not necessarily why.
 
-This project explores how **systematic probing, local rule-based explanations, and query-pattern monitoring can help reveal discrepancies between a model's apparent behaviour and its ordinary predictions**. It investigates a scaffolding-style scenario in which a wrapper attempts to recognise explanation probes and return benign predictions during probing, while using a different model for ordinary inputs.
+This project builds a **black-box AI task scheduler** and wraps it in an explanation and query-monitoring workflow. It uses **LOREsa** to generate local explanations for individual scheduling decisions, records incoming queries, analyses recent query patterns for systematic probing, and controls whether an explanation is released.
 
-The project is **not limited to recruitment**. Hiring is one controlled example used to demonstrate an age-related decision disparity. The broader research idea can be adapted to investigate potential bias or unexpected decision patterns in other black-box AI systems, including lending, education, healthcare, content moderation, insurance, and resource allocation. Applying it to another domain requires suitable data, features, model interfaces, and evaluation criteria; those domain-specific pipelines are not all implemented here.
+The research motivation is to investigate whether explanations and observed model behaviour provide a useful picture of the scheduler's decision patterns, and how systematic queries can expose decision boundaries or unusual behaviour. The project is a controlled research prototype, not a production scheduling service or a proven bias-detection system.
 
-This repository is a proof of concept, not a production-ready fairness auditor. Its synthetic examples can demonstrate a method under controlled conditions, but they do not establish that any real-world system is biased or fair.
+## Research question
 
-## The central question
+**How can local explanations and query-pattern monitoring help investigate the decision behaviour of a black-box AI task scheduler, and what are the limitations of restricting explanations when probing is suspected?**
 
-**Can a model conceal a known decision pattern from a local explainer by behaving differently when it detects explanation queries, and can systematic testing help reveal the discrepancy?**
+The current implementation focuses on scheduling tasks across four virtual machines. It does not include a recruitment model or a recruitment experiment.
 
-The recruitment case study makes this question concrete: if two synthetic candidates have the same technical proficiency but different ages, does the model treat them differently? If the system behaves differently when queried by an explainer, does the explanation reflect the model's ordinary behaviour?
+## What the project does
 
-The same investigation pattern can be adapted to other domains by defining the relevant inputs, outcomes, groups or conditions, and domain-appropriate metrics.
+- **Predicts VM assignments:** a Random Forest classifier predicts one of four virtual machines for each task.
+- **Uses synthetic scheduling data:** task inputs and reference examples are generated programmatically.
+- **Generates local explanations:** an adapter connects the scheduler to LOREsa to request a rule, counterfactuals, fidelity, and feature-importance information for a task.
+- **Logs requests:** each scheduling interaction and its decision is recorded in an in-memory query history.
+- **Detects probing patterns heuristically:** the detector examines recent queries for systematic feature variation, monotonic scans, decision transitions, repeated inputs, and query volume.
+- **Guards explanation release:** the scheduler still returns a decision, while the guard can withhold the explanation when the probe score reaches its configured threshold.
+- **Provides a Flask API:** endpoints support task scheduling, resetting the query history, and running a memory-boundary probe.
 
-## Why this matters
-
-A user may only see a final prediction, such as:
-
-- **Hiring:** shortlisted / not shortlisted
-- **Lending:** approved / rejected
-- **Education:** score or assessment outcome
-- **Content moderation:** allowed / flagged
-- **Resource allocation:** assigned / not assigned
-
-A local explanation may offer readable rules for one input, but reviewers still need to ask:
-
-1. Does the explanation approximate the model that actually serves ordinary predictions?
-2. Do outcomes change when one feature is varied while other relevant features are held constant?
-3. Are explanations stable across reasonable neighbourhood samples and repeated runs?
-4. Does the system appear to behave differently during explanation probing?
-5. Could probe-detection logic block legitimate auditors or ordinary users?
-
-A difference in outcomes is a signal to investigate, not automatic proof of discrimination. Fairness assessments require appropriate context, metrics, and domain expertise.
-
-## Current implementation
-
-The supplied code contains two related experimental paths. They share the broad motivation of investigating black-box behaviour, explanations, and probing, but **they are not yet integrated into one domain-independent end-to-end pipeline**.
-
-### 1. Synthetic recruitment-bias experiment
-
-`data_generator.py` generates synthetic candidate profiles with:
-
-- `age` — a candidate's age
-- `proficiency` — a simulated technical proficiency score
-- `fair_hired` — a baseline hiring label
-- `biased_hired` — a deliberately age-sensitive hiring label
-
-The baseline and age-sensitive labels make it possible to construct a controlled example in which technical proficiency is isolated from age. No real applicant data is required.
-
-`models.py` trains two logistic-regression models:
-
-- **Baseline model:** uses technical proficiency as its input feature.
-- **Age-sensitive model:** uses age and technical proficiency.
-
-`scaffold.py` defines a `ScaffoldedRecruitmentModel` wrapper that routes ordinary predictions to the age-sensitive model and inputs marked as probes to the baseline model. This demonstrates the concept of selective behaviour during probing; it does not by itself prove that the detector can identify realistic or adaptive explanation queries.
-
-### 2. Local explanation and query-monitoring path
-
-The explanation and monitoring modules explore how a local surrogate and query history can be used in an investigation:
-
-- `explainer.py` generates a local neighbourhood, queries a predictor, fits a shallow decision tree, and extracts readable rules with a local-fidelity estimate.
-- `lore_explainer.py` adapts a predictor and tabular reference data for the LOREsa library.
-- `query_logger.py` records query history and associated prediction/explanation information.
-- `probe_detector.py` uses heuristic signals in query patterns to calculate a probe score.
-- `explanation_guard.py` uses probe-detection output to control explanation release.
-- `explanation_service.py` coordinates prediction, logging, probe detection, and explanation release.
-
-The Flask application in `app.py` currently initialises the task-scheduling example and its explanation service. `scheduler.py` and `scheduler_data.py` use task-scheduling features such as CPU requirements, memory, priority, deadline, and queue length, with `assigned_vm` as the target. Therefore, the current web-app path is **a scheduling demo**, not a fully integrated recruitment-bias web application.
-
-## Research workflow
-
-The intended investigation can be described in the following stages:
+## Architecture
 
 ```text
-Choose a black-box model and define an audit question
-                         |
-                         v
-              Generate or collect inputs
-                         |
-                         v
-          Query the model and log outcomes
-                         |
-                         v
-        Vary relevant features systematically
-                         |
-                         v
-       Generate local explanations if supported
-                         |
-                         v
- Compare explanations with ordinary predictions
-                         |
-                         v
-     Evaluate patterns, uncertainty, and limitations
+                 Synthetic Scheduling Data
+                           |
+                           v
+                 Task Scheduler (Random Forest)
+                           |
+             Task input --> Prediction
+                           |
+                           v
+                     Query Logger
+                           |
+                           v
+                    Probe Detector
+                           |
+                           v
+                    Explanation Guard
+                           |
+                +----------+----------+
+                |                     |
+          Explanation allowed?   Probe suspected
+                |                     |
+                v                     v
+           LOREsa adapter       Withhold explanation
+                |
+                v
+       Local rule / counterfactuals
+                |
+                v
+       API response with decision,
+       guard status, and explanation
+       (when permitted)
 ```
 
-This is the general research workflow, not a claim that every stage is currently connected through one executable pipeline in this repository.
+The explanation guard controls explanation release, not the scheduler's VM assignment. A high probe score is a heuristic signal, not proof of malicious intent. Legitimate testing and auditing may also produce systematic query patterns.
 
-## Methodology for the recruitment case study
+## Scheduling model
 
-### 1. Synthetic dataset
+### Input features
 
-Candidate age and technical proficiency are generated for a controlled experiment. Synthetic data avoids using identifiable applicant information and makes the intended relationship easier to inspect. The experiment intentionally keeps the feature set small; real recruitment decisions involve many additional factors and legal considerations.
+Each task is represented using five numeric features:
 
-### 2. Baseline and age-sensitive models
-
-A proficiency-only model serves as a reference, while a model using age and proficiency represents a deliberately age-sensitive alternative. Candidate pairs with equal proficiency but different ages can be used to examine whether age changes the prediction.
-
-### 3. Scaffolding-style wrapper
-
-The wrapper simulates a system that routes probe-labelled inputs to a baseline model and ordinary inputs to an age-sensitive model. This creates a controlled discrepancy to investigate. The current implementation should be understood as a limited proof of concept: probe recognition depends on how the query is identified, and this is not evidence that a real system could reliably recognise a sophisticated explainer.
-
-### 4. Local rule-based explanation
-
-The simplified explainer:
-
-1. Takes one input as the instance to explain.
-2. Generates nearby samples.
-3. Queries the selected predictor for their outputs.
-4. Fits a shallow decision tree to approximate those local outputs.
-5. Extracts readable decision rules and estimates local fidelity.
-
-This is **LORE-inspired**, not a complete reproduction of the original LORE algorithm or its full counterfactual-generation procedure.
-
-### 5. Query-pattern monitoring
-
-The query-monitoring modules look for patterns such as systematic feature variation, monotonic scans, repeated queries, decision transitions, and high query volume. Such signals can help identify unusual probing behaviour, but they can also arise from legitimate audits, testing, or normal usage. A probe score is not proof of malicious intent.
-
-## Evaluation ideas
-
-The following metrics are useful research directions. They should be reported only where the relevant experiment has actually been run.
-
-| Metric | What it investigates |
+| Feature | Description |
 |---|---|
-| Selection-rate difference | Whether outcome rates differ between defined groups in the synthetic recruitment example |
-| Feature sensitivity | Whether changing one feature while holding others fixed changes a prediction |
-| Local fidelity | How closely a local surrogate matches the queried model on held-out neighbourhood samples |
-| Explanation stability | Whether explanations change substantially across reasonable samples or random seeds |
-| Probe-detection precision and recall | How well the detector identifies labelled probes, including false positives and false negatives |
-| Attack success rate | How often an explanation conceals a known pattern while ordinary predictions still exhibit it, under a predefined criterion |
-| Runtime | Approximate cost of data generation, querying, explanation, and evaluation |
+| `cpu_required` | CPU capacity required by the task |
+| `memory_required` | Memory required by the task |
+| `priority` | Task priority |
+| `deadline` | Task deadline value used by the scheduling policy |
+| `queue_length` | Current queue length indicator |
 
-For the scaffolding experiment, fidelity should be evaluated against the **actual deployed wrapper or predictor being audited**, not merely against the benign model used for selected probe queries. An explanation that omits a feature is not, on its own, proof that the model is fair.
+### Output
 
-## 9. Proposed Project Structure
+The model predicts one of four VM labels:
 
-```text
-recruitment-explanation-attack/
-├── README.md
-├── requirements.txt
-├── data/
-│   └── README.md
-├── src/
-│   ├── data_generator.py
-│   ├── models.py
-│   ├── scaffold.py
-│   ├── explainer.py
-│   ├── defence.py
-│   └── evaluation.py
-├── experiments/
-│   └── run_experiment.py
-├── results/
-│   ├── metrics.json
-│   ├── explanation_examples.json
-│   └── figures/
-└── tests/
-    └── test_pipeline.py
+- `VM-1`
+- `VM-2`
+- `VM-3`
+- `VM-4`
+
+### How the black-box model is created
+
+`scheduler_data.py` defines a deterministic rule-based scheduling policy and generates synthetic tasks. `scheduler.py` creates training examples from that policy and trains a `RandomForestClassifier` on the generated labels.
+
+The trained Random Forest is the predictor exposed by the application. The policy used to create training labels is available in the source code for reproducibility, but the application's prediction interface is the model's `predict()` method.
+
+This setup makes it possible to study an interpretable synthetic environment. It does not establish that the model is biased, nor does it represent a realistic cloud scheduler in all its complexity.
+
+## LOREsa local explanations
+
+`lore_explainer.py` adapts the scheduler and reference data for the LOREsa library. It:
+
+1. Converts a task input into the expected tabular format.
+2. obtains the scheduler's predicted VM assignment.
+3. passes the instance to LOREsa to generate a local explanation.
+4. returns the prediction together with the explanation fields exposed by the adapter.
+
+The adapter is designed to return:
+
+- `rule` — the local rule associated with the instance.
+- `counterfactuals` — alternative instances returned by LOREsa.
+- `fidelity` — the fidelity value returned by the explanation library.
+- `feature_importances` — feature-importance information returned by the explanation library.
+
+The exact structure and interpretation of these fields depend on the installed LOREsa version. An explanation is a local approximation; it should not automatically be interpreted as a complete account of the model's global behaviour.
+
+## Query monitoring and explanation guard
+
+### Query logger
+
+`query_logger.py` stores recent scheduling requests and related information, including the input task, predicted decision, whether an explanation was requested or released, and the probe score. The current history is held in memory and is cleared when the reset endpoint is called or the application restarts.
+
+### Probe detector
+
+`probe_detector.py` uses heuristic signals from a sliding window of recent queries. These include:
+
+- A feature changing systematically while other features remain relatively stable.
+- Monotonic scans of a feature.
+- Changes in VM assignment across a query sequence.
+- Repeated task inputs.
+- Query volume within the observation window.
+
+The detector combines these signals into a probe score and compares the score with a configurable threshold. This is a heuristic, not a trained adversarial-query classifier. Its performance must be measured; false positives and false negatives are possible.
+
+### Explanation guard
+
+`explanation_guard.py` evaluates the detector result and decides whether an explanation should be released. `explanation_service.py` coordinates the scheduler, logger, guard, and LOREsa adapter.
+
+The design intentionally separates the scheduling decision from explanation access: a suspected probe can cause the explanation to be withheld, but the scheduler still returns its VM assignment. This trade-off should be evaluated carefully because it can also prevent legitimate users or auditors from receiving explanations.
+
+## Flask API
+
+The Flask application exposes the following routes.
+
+### `GET /`
+
+Renders the web interface template (`index.html`).
+
+### `POST /api/schedule`
+
+Submits a task for scheduling and requests an explanation. Example request body:
+
+```json
+{
+  "cpu_required": 4,
+  "memory_required": 8,
+  "priority": 5,
+  "deadline": 200,
+  "queue_length": 5
+}
 ```
 
-The defence and test modules may initially contain only minimal implementations or be deferred until the core experiment works.
+The response includes the scheduler's `decision`, `probe_score`, `is_probe`, `explanation_allowed`, and detector `signals`. The `explanation` field contains the LOREsa result when an explanation is released; otherwise it is `null`.
 
-## 12. Getting Started
+### `POST /api/reset`
 
-Install the required dependencies:
+Clears the in-memory query history for the current service session.
+
+### `POST /api/probe`
+
+Runs a sequence of tasks while varying `memory_required` over a configurable range. Optional JSON fields:
+
+```json
+{
+  "start": 6,
+  "end": 13
+}
+```
+
+For each tested memory value, the endpoint returns the scheduling decision, probe score, probe flag, and whether the explanation was allowed. This endpoint is intended for controlled local experimentation with boundary-style queries.
+
+## Repository modules
+
+| Module | Responsibility |
+|---|---|
+| `app.py` | Flask app and HTTP endpoints |
+| `scheduler.py` | Trains and exposes the Random Forest task scheduler |
+| `scheduler_data.py` | Defines scheduling features, synthetic task generation, and the label-generating policy |
+| `lore_explainer.py` | Adapts the scheduler and tabular data to LOREsa |
+| `explanation_service.py` | Coordinates prediction, logging, detection, and explanation release |
+| `query_logger.py` | Stores the in-memory query history |
+| `probe_detector.py` | Scores query sequences using heuristic probe signals |
+| `explanation_guard.py` | Applies the explanation-release decision |
+| `explainer.py` | Separate simplified local decision-tree explainer retained in the repository; it uses candidate age/proficiency fields and is not part of the scheduler API path |
+| `data_generator.py`, `models.py`, `scaffold.py` | Separate candidate/recruitment experiment modules, not used by the current scheduler web-app path |
+
+The scheduler workflow described in this README is the focus of the application. The candidate/recruitment files are not combined with the scheduler pipeline.
+
+## Getting started
+
+### Requirements
+
+The project uses Python and the following core libraries:
+
+- Flask
+- NumPy
+- pandas
+- scikit-learn
+- LOREsa (`lore_sa`)
+
+The compatible LOREsa package version and installation method may depend on the environment. Install the version required by your project setup. If the repository has a `requirements.txt`, use its pinned dependencies.
+
+### Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+### Install dependencies
+
+Install the compatible LOREsa package separately if it is not already available in your environment. If your project contains a `requirements.txt`, prefer:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Run the experiment:
+To install LORE_sa (whenever necessary) in .venv, type command: 
+```
+python -m pip install -e ./lore_sa
+``` 
+
+### Run the application
+
+Run `app.py` from the project layout in which its `src` imports resolve correctly. For example, if `app.py` is inside the `src/` directory, run it from the repository root with:
 
 ```bash
-python experiments/run_experiment.py
+python -m src.app
 ```
 
-The script should generate the synthetic data, initialise the models, run the selected experiment configurations, and save evaluation results to the `results/` directory.
+The app is configured for local development at `http://127.0.0.1:5000`. Debug mode is enabled in the current code; do not expose this development server publicly.
 
-Use fixed random seeds where appropriate so that the experiment can be reproduced and its results compared across configurations.
+If your repository uses a different package layout, adjust the launch command to match the actual location of `app.py` and the `src` package.
 
+## Evaluation plan
 
-## Extending the idea beyond recruitment
+The following are suggested evaluation measures. Report them as results only after running the relevant experiments.
 
-To adapt this research approach to another black-box AI domain:
+| Measure | What it investigates |
+|---|---|
+| Prediction consistency | Whether repeated identical inputs produce the same VM assignment |
+| Feature sensitivity | Whether changing one task feature while holding others fixed changes the VM assignment |
+| Local fidelity | How closely the local explanation represents the scheduler in its local evaluation region |
+| Explanation stability | Whether explanations remain similar across repeated runs or neighbourhood samples |
+| Probe-detection precision and recall | How well the heuristic identifies labelled probe sequences, including false positives and false negatives |
+| Explanation availability | How often explanations are released or withheld under normal and systematic query patterns |
+| Boundary behaviour | Where VM assignments change as one feature is varied across a range |
+| Runtime | Time taken for scheduling, detection, and explanation generation |
 
-1. **Define the audit question.** Identify the outcome or decision pattern to investigate.
-2. **Map the input schema.** Specify features, valid ranges, missing-value behaviour, and which features may be varied.
-3. **Choose meaningful comparisons.** Define groups or matched inputs in a way that fits the domain and avoids misleading conclusions.
-4. **Connect the predictor.** Use a consistent interface to query the actual model being audited.
-5. **Select explanations and metrics.** Choose local explanations and evaluation methods suitable for the model and data.
-6. **Validate the pipeline.** Test fidelity, stability, detector false positives/negatives, and reproducibility before interpreting results.
-7. **Document constraints.** Record assumptions, limitations, privacy concerns, and any domain-specific requirements.
-
-Possible application areas include lending, education, healthcare, insurance, content moderation, and automated resource allocation. These are **potential future adaptations**, not domains for which the current repository has already been validated.
+When evaluating the detector, construct both systematic probe sequences and ordinary task sequences. Define the criteria before measuring performance. A detector that flags systematic variation may also flag legitimate debugging or fairness audits.
 
 ## Limitations and responsible use
 
-- The recruitment example uses synthetic data and deliberately controlled labels.
-- The local surrogate is LORE-inspired, not the complete LORE implementation.
-- The probe detector uses heuristics and may fail on realistic, adaptive, or distribution-matched probes.
-- The recruitment experiment and scheduling-oriented Flask pipeline are not yet unified behind a common model/data interface.
-- A high probe score does not prove malicious intent; legitimate auditors may make systematic queries.
-- Local explanations approximate behaviour around an input and may not represent the model globally.
-- Differences in model outputs do not alone establish unlawful discrimination or explain why a difference exists.
-- Results from synthetic examples should not be generalised to real systems without further testing.
+- Tasks and training labels are synthetic and generated from a simple policy.
+- The Random Forest approximates that policy; its behaviour may differ from the label-generating rules.
+- LOREsa explanations are local and depend on the data, configuration, and installed library version.
+- The probe detector is heuristic and has not, by itself, demonstrated robust detection of adaptive or realistic probing.
+- Query history is held in memory; the current implementation is not a persistent monitoring or multi-user session system.
+- Withholding explanations can inconvenience legitimate users and auditors.
+- Probe detection does not prove intent, bias, deception, or malicious activity.
+- A scheduling disparity or feature sensitivity is a signal for investigation, not proof of unfairness.
+- The prototype has not been validated as a production scheduler or a general-purpose fairness auditor.
 
-Do not use this prototype to make real employment, lending, healthcare, education, or other consequential decisions. For real-world audits, use appropriate authorisation, protect sensitive data, involve domain and fairness experts, and follow relevant legal and ethical requirements.
+Use this project for research and controlled experimentation. Do not rely on it for real infrastructure scheduling or other consequential decisions without appropriate testing, security review, monitoring, and domain-specific validation.
 
 ## Future work
 
-- Unify the hiring and scheduling examples behind a documented, domain-independent predictor interface.
-- Connect data generation, model querying, explanation, monitoring, and evaluation in a reproducible end-to-end experiment.
-- Add tests for feature sensitivity, local fidelity, explanation stability, and detector performance.
-- Compare simple neighbourhood generation with more realistic, domain-valid neighbourhoods.
-- Evaluate adaptive probing and document threat-model assumptions.
-- Add structured experiment outputs and visualisations, with metrics and criteria defined before running experiments.
-- Investigate how an audit can remain useful without unfairly blocking legitimate explanation requests.
+- Evaluate LOREsa explanations against the scheduler's actual predictions on held-out, domain-valid task samples.
+- Measure detector precision, recall, false-positive rates, and false-negative rates across normal and systematic query sequences.
+- Compare explanation availability under benign usage, automated tests, and boundary scans.
+- Add repeatable experiment scripts, tests, and structured result outputs.
+- Improve session-aware query tracking and make logging configurable.
+- Investigate how to support legitimate auditing without unnecessarily withholding explanations.
+- Examine feature sensitivity and decision boundaries across the scheduler's valid input ranges.
 
 ## Research contribution
 
-The project explores a practical question in explainable AI and model auditing: **how can reviewers investigate a black-box system when its behaviour during explanation queries may not match its ordinary behaviour?** A synthetic recruitment example provides a controlled setting for studying age-sensitive decisions, while the broader approach motivates future adaptations to other domains.
-
-The repository is intended as a reproducible research prototype. It does not claim that scaffolding attacks are novel, that the current detector is robust, or that the pipeline is already validated across multiple domains. Those claims would require systematic experiments and a review of related work on deceptive model behaviour, explanation attacks, and local explainability methods.
-
----
+This project provides a controlled environment for studying the interaction between a black-box task scheduler, LOREsa-based local explanations, query-pattern monitoring, and explanation-release control. Its central focus is not merely to predict a VM assignment, but to investigate how explanations and systematic probing can help reviewers examine model behaviour—and how heuristic safeguards may affect access to those explanations.
 
 **Status:** Research prototype; synthetic recruitment and scheduling examples; integration and validation ongoing.  
 **Primary goal:** Investigate hidden decision patterns and discrepancies between black-box behaviour and explanations.  
@@ -248,3 +304,5 @@ The repository is intended as a reproducible research prototype. It does not cla
 
 ### Additional information
 To install LORE_sa in .venv, type command: python -m pip install -e ./lore_sa
+## References / Citations
+Guidotti, R., Monreale, A., Ruggieri, S., Pedreschi, D., Turini, F., & Giannotti, F. (2019). Factual and Counterfactual Explanations for Black Box Decision Making. IEEE Intelligent Systems, 34(6), 14-23.
