@@ -1,5 +1,8 @@
 # Revealing Hidden Decision Patterns in Black-Box AI Scheduling
 
+### DEMO (scheduling and probing defence)
+[View instructions for live demo and boundary probe simulation](./DEMO.md)
+
 ### Investigating LOREsa Explanations, Query Probing, and Explanation Access Control
 
 > A research prototype for examining how a black-box task scheduler makes decisions, generating local explanations with LOREsa, and detecting query patterns that may indicate systematic probing.
