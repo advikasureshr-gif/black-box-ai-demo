@@ -246,19 +246,17 @@ python -m pip install -e ./lore_sa
 
 ### Run the application
 
-Run `app.py` from the project layout in which its `src` imports resolve correctly. For example, if `app.py` is inside the `src/` directory, run it from the repository root with:
+Run `app.py` from the project:
 
 ```bash
-python -m src.app
+python -m web/app.py
 ```
 
-The app is configured for local development at `http://127.0.0.1:5000`. Debug mode is enabled in the current code; do not expose this development server publicly.
-
-If your repository uses a different package layout, adjust the launch command to match the actual location of `app.py` and the `src` package.
+The app is configured for local development at `http://127.0.0.1:5000`.
 
 ## Evaluation plan
 
-The following are suggested evaluation measures. Report them as results only after running the relevant experiments.
+The following are suggested evaluation measures.
 
 | Measure | What it investigates |
 |---|---|
