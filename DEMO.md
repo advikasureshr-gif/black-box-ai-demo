@@ -23,7 +23,7 @@ The deployed application demonstrates the core scheduling and explainability pip
 
 ### 2. Boundary Probe Detection — Recorded Demonstration
 
-**[Watch the Boundary Probe Simulation](#boundary-probe-video)**
+https://github.com/user-attachments/assets/83327c43-8498-4ceb-b066-4cf189edf553
 
 The recorded demonstration shows the probe-testing workflow, where task inputs are systematically varied to investigate the scheduler's decision boundaries.
 
@@ -55,12 +55,3 @@ This is a hosting-resource limitation observed during testing; it does not, by i
 This project explores the use of local explainability in black-box scheduling systems and investigates whether systematic input probing can be detected and controlled.
 
 The prototype combines task scheduling, LOREsa-based explanations, probe-risk assessment, and explanation guarding.
-
----
-
-## Boundary Probe Video
-
-<!-- Replace the placeholder below with your uploaded video link or embedded video. -->
-
-**Recorded demonstration:** Boundary probing and explanation guarding.
-
