@@ -302,4 +302,8 @@ Use this project for research and controlled experimentation. Do not rely on it 
 This project provides a controlled environment for studying the interaction between a black-box task scheduler, LOREsa-based local explanations, query-pattern monitoring, and explanation-release control. Its central focus is not merely to predict a VM assignment, but to investigate how explanations and systematic probing can help reviewers examine model behaviour—and how heuristic safeguards may affect access to those explanations.
 
 ## References / Citations
-Guidotti, R., Monreale, A., Ruggieri, S., Pedreschi, D., Turini, F., & Giannotti, F. (2019). Factual and Counterfactual Explanations for Black Box Decision Making. IEEE Intelligent Systems, 34(6), 14-23.
+- Guidotti, R., Monreale, A., Ruggieri, S., Pedreschi, D., Turini, F., & Giannotti, F. (2019). Factual and Counterfactual Explanations for Black Box Decision Making. IEEE Intelligent Systems, 34(6), 14-23.
+- Guidotti, R., Monreale, A., Ruggieri, S., Naretto, F., Turini, F., Pedreschi, D., & Giannotti, F. (2022). Stable and actionable explanations of black-box models through factual and counterfactual rules. Data Mining and Knowledge Discovery.
+- Guidotti, R., Monreale, A., Ruggieri, S., Pedreschi, D., Turini, F., & Giannotti, F. (2018). Local rule-based explanations of black box decision systems. arXiv preprint arXiv:1805.10820. https://arxiv.org/abs/1805.10820
+
+Github repo: https://github.com/kdd-lab/LORE_sa
